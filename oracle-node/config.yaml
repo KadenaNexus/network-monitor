@@ -1,0 +1,28 @@
+databaseDirectory: /var/lib/chainweb
+resetChainDatabases: false
+chainweb:
+  chainwebVersion: mainnet01
+  fullHistoricPactState: false
+  p2p:
+    peer:
+      hostaddress:
+        hostname: 193.122.85.1
+        port: 1789
+      interface: '*4'
+    ignoreBootstrapNodes: false
+    private: false
+  serviceApi:
+    interface: '127.0.0.1'
+    port: 1848
+  mining:
+    coordination:
+      enabled: false
+    nodeMining:
+      enabled: false
+logging:
+  logger:
+    log_level: info
+  backend:
+    color: auto
+    format: text
+    handle: stdout

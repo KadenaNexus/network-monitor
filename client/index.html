@@ -759,6 +759,7 @@ let map = null, layer = null;
 const hostOf = org => {
   const o = (org || '').toLowerCase();
   if (/\baws\b/.test(o) || o.includes('amazon')) return 'AWS';
+  if (o.includes('oracle')) return 'Oracle Cloud';
   if (o.includes('alibaba')) return 'Alibaba Cloud';
   if (o.includes('ovh')) return 'OVHcloud';
   if (o.includes('hetzner')) return 'Hetzner';

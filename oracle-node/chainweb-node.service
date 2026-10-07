@@ -1,0 +1,29 @@
+[Unit]
+Description=Kadena Saudi Arabia Chainweb mainnet node
+Wants=network-online.target
+After=network-online.target chainweb-bootstrap.service
+Requires=chainweb-bootstrap.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=chainweb
+Group=chainweb
+StateDirectory=chainweb
+StateDirectoryMode=0750
+WorkingDirectory=/var/lib/chainweb
+ExecStart=/usr/local/bin/chainweb-node --config-file=/etc/chainweb/config.yaml +RTS -N2 -RTS
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=180
+LimitNOFILE=65536
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/chainweb
+
+[Install]
+WantedBy=multi-user.target
