@@ -26,11 +26,11 @@ The files in this directory record the installed configuration. Do not rerun the
 
 Mustafa's existing Ed25519 public key is added to Ubuntu's `authorized_keys`. The supplied private key and personal private key stay on the local machine and are not stored in this repository.
 
-Public P2P API: `https://193.122.85.1:1789`. The self-signed node certificate requires `curl -k` when accessing the IP directly. The node advertises the public IP and listens on IPv4.
+Public P2P API: `https://193.122.85.1:1789`. The self-signed node certificate requires `curl -k` when accessing the IP directly. The node advertises the public IP and listens on IPv4. It uses five community bootstrap peers verified from Jeddah; the packaged `us-e1.bootstrap.kadinic.com` repeatedly timed out, so the built-in list is replaced with the working community peers. Cut fetching allows 30 seconds instead of the default 3 seconds to avoid repeated timeouts during initial catch-up. Normal-operation logging is set to `warn`.
 
 Service API: `http://127.0.0.1:1848`, accessible on the server or through an SSH tunnel. Mining is disabled.
 
-Oracle's host firewall initially rejected incoming connections after the SSH rule. TCP 1789 is accepted before that REJECT rule, and the rules are saved with `netfilter-persistent`. Oracle's console ingress rule must also allow TCP 1789; the client reported it already does.
+Oracle's host firewall initially rejected incoming connections after the SSH rule. TCP 1789 is accepted before that REJECT rule, and the rules are saved with `netfilter-persistent`. Oracle's console ingress rule also allows TCP 1789, confirmed by an external probe and an HTTP 200 response from the node's public HTTPS cut endpoint.
 
 ## Three operational checks
 
@@ -64,6 +64,8 @@ The linked dashboard README contains no node setup or three node checks. Use the
    ```
 
 During initial download, inspect `sudo journalctl -u chainweb-bootstrap` and `sudo du -sh /var/lib/chainweb`. Retry a failed initial download with `sudo systemctl restart chainweb-bootstrap`, then `sudo systemctl start chainweb-node` after it succeeds.
+
+The recorded deployment checks are in [`verification.json`](verification.json). The service and public endpoint pass. Initial synchronization was still catching up when this report was captured; its cut height was advancing. Repeat the synchronization check to confirm arrival at the current network tip.
 
 ## Oracle Cloud on the dashboard
 

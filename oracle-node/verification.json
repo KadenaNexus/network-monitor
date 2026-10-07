@@ -1,0 +1,42 @@
+{
+  "checkedAtUtc": "2026-10-07T19:29:46.434890+00:00",
+  "server": "193.122.85.1",
+  "oracleRegion": "me-jeddah-1",
+  "nodeVersion": "3.2.1",
+  "network": "mainnet01",
+  "checks": {
+    "serviceAndHealth": {
+      "enabled": true,
+      "active": true,
+      "healthHttpStatus": 200,
+      "healthResponse": "Health check OK."
+    },
+    "publicP2p": {
+      "endpoint": "https://193.122.85.1:1789/chainweb/0.0/mainnet01/cut",
+      "httpStatus": 200,
+      "chainCount": 20
+    },
+    "synchronization": {
+      "state": "catching-up",
+      "atTip": false,
+      "firstObservedCutHeight": 145859460,
+      "currentCutHeight": 145869360,
+      "advanced": true,
+      "bootstrap": "https://fr-1.chainweb-community.org",
+      "bootstrapCutHeight": 145906882,
+      "minBlocksBehindPerChain": 1875,
+      "maxBlocksBehindPerChain": 1877
+    }
+  },
+  "database": {
+    "snapshotDate": "2026-10-07",
+    "kind": "compacted",
+    "blake2ChecksumsVerified": true,
+    "historicalCoverage": "limited"
+  },
+  "website": {
+    "oracleCloudClassification": "tested and staged",
+    "liveInstallation": "pending website server sudo authentication",
+    "nodeCrawlerRecordPresent": true
+  }
+}

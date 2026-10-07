@@ -3,13 +3,26 @@ resetChainDatabases: false
 chainweb:
   chainwebVersion: mainnet01
   fullHistoricPactState: false
+  cuts:
+    fetchTimeout: 30000000
   p2p:
     peer:
       hostaddress:
         hostname: 193.122.85.1
         port: 1789
       interface: '*4'
-    ignoreBootstrapNodes: false
+    ignoreBootstrapNodes: true
+    peers:
+      - address: {hostname: fr-1.chainweb-community.org, port: 443}
+        id: null
+      - address: {hostname: nl-1.chainweb-community.org, port: 443}
+        id: null
+      - address: {hostname: pl-1.chainweb-community.org, port: 443}
+        id: null
+      - address: {hostname: pl-2.chainweb-community.org, port: 443}
+        id: null
+      - address: {hostname: ca-1.chainweb-community.org, port: 443}
+        id: null
     private: false
   serviceApi:
     interface: '127.0.0.1'
@@ -21,7 +34,7 @@ chainweb:
       enabled: false
 logging:
   logger:
-    log_level: info
+    log_level: warn
   backend:
     color: auto
     format: text
