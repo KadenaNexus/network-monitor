@@ -75,7 +75,7 @@ The recorded deployment checks are in [`verification.json`](verification.json). 
 
 nginx is installed and exposes GET/HEAD only for `/info`, `/health-check` and `/chainweb/0.0/mainnet01/cut`, with CORS `*` and a request limit. The local gateway passed HTTP 200 and CORS checks; POST returns 403 and transaction submission paths return 404. Host firewall accepts TCP 80 and 443 and persists the rules.
 
-`node.kadena.ws.conf`, `setup-node-gateway.sh` and `activate-node-https.sh` record the deployed HTTP gateway and the final HTTPS activation step. GoDaddy DNS `node A 193.122.85.1` and Oracle security list/NSG public ingress TCP 80/443 are still required. Once completed, run:
+`node.kadena.ws.conf`, `setup-node-gateway.sh` and `activate-node-https.sh` record the deployed HTTP gateway and the final HTTPS activation step. Oracle web ingress is now configured, and the gateway responds with HTTP 200 externally. The GoDaddy A record was created as `node.kadena.ws.kadena.ws`; its Name/Host needs to be changed to `node` before `node.kadena.ws` can resolve and HTTPS can be activated. Once completed, run:
 
 ```sh
 ssh ubuntu@193.122.85.1 'sudo bash /home/ubuntu/kadena-homepage-update/activate-node-https.sh'

@@ -38,6 +38,7 @@
     "nodeCrawlerRecordPresent": true,
     "crawlerFallbackInstallation": "pending website server sudo authentication",
     "nodeGatewayLocalChecks": "HTTP 200; CORS *; GET/HEAD only",
-    "nodeGatewayHttps": "pending GoDaddy A record and Oracle ingress TCP 80/443"
+    "nodeGatewayHttps": "pending correction of GoDaddy A record name: node.kadena.ws.kadena.ws exists, node.kadena.ws returns NXDOMAIN",
+    "nodeGatewayHttp": "HTTP 200 from external machine with Host node.kadena.ws; Oracle web ingress configured"
   }
 }
