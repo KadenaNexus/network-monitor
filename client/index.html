@@ -384,7 +384,7 @@ footer a:hover{color:var(--sand)}
 
 <footer>
   <div class="wrap">
-    <span>Data: Chainweb node and GraphQL indexer (chaddex.com), node crawl (denascan.com), map &copy; OpenStreetMap contributors.</span>
+    <span>Data: Chainweb node and GraphQL indexer (chaddex.com), node crawl (denascan.com / kdascan.dnns.es), map &copy; OpenStreetMap contributors.</span>
     <nav aria-label="Footer">
       <a href="https://kadena.ws/">Kadena Nexus</a>
       <a href="https://adoption.kadena.ws/">Adoption Index</a>
@@ -403,6 +403,7 @@ const CFG = {
   cut: 'https://chainweb.chaddex.com/chainweb/0.0/mainnet01/cut',
   gql: 'https://graphql.chaddex.com/graphql/v0',
   nodes: 'https://nodes.denascan.com/api/nodes',
+  nodesFallback: '/api/kdascan/nodes',
   data: '/data/',             // served by this site: ttfc, activechains, tx24h, avgblocktime
   windowMs: 4 * 60 * 1000,    // visible span of the chain strip
   tpsWindowS: 180,
@@ -778,19 +779,37 @@ function initMap() {
   }).addTo(map);
   layer = L.layerGroup().addTo(map);
 }
+// Each collector supplies a different height measure. Compare nodes within the
+// selected collector: mean chain height for Denascan, maximum for kdascan.
+const numberOrNull = value => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+async function nodeRecords() {
+  try {
+    const d = await getJSON(CFG.nodes, {}, 20000);
+    if (!Array.isArray(d.data) || !d.data.length) throw new Error('No node records');
+    return {source: 'denascan.com', all: d.data.map(n => {
+      const m = n.metadata || {}, cut = numberOrNull(m.cut_height);
+      return {city: n.city || m.region || 'Unknown', country: n.country || '–', lat: n.coordinate && n.coordinate.lat, lng: n.coordinate && n.coordinate.lng,
+        host: hostOf((m.org || '') + ' ' + (m.isp || '')), alive: m.status === 'active', height: cut == null ? null : cut / N,
+        ok: numberOrNull(m.successful_probes), probes: numberOrNull(m.total_probes), probe: utc(m.last_probe) || 0};
+    })};
+  } catch (e) {
+    const d = await getJSON(CFG.nodesFallback, {}, 20000);
+    if (!Array.isArray(d) || !d.length) throw new Error('No fallback node records');
+    return {source: 'kdascan.dnns.es', all: d.map(n => ({
+      city: n.ciudad || 'Unknown', country: n.pais || n.cc || '–', lat: n.lat, lng: n.lon,
+      host: hostOf((n.org || '') + ' ' + (n.isp || '')), alive: n.alcanzable === true, height: numberOrNull(n.altura_max),
+      ok: null, probes: null, probe: utc(n.ultimo_visto) || 0
+    }))};
+  }
+}
 async function pullNodes() {
-  const d = await getJSON(CFG.nodes, {}, 20000);
-  const all = (d.data || []).map(n => {
-    const m = n.metadata || {};
-    return {city: n.city || m.region || 'Unknown', country: n.country || '–', lat: n.coordinate && n.coordinate.lat, lng: n.coordinate && n.coordinate.lng,
-      host: hostOf((m.org || '') + ' ' + (m.isp || '')), alive: m.status === 'active', cut: m.cut_height || 0,
-      ok: m.successful_probes || 0, probes: m.total_probes || 0, probe: utc(m.last_probe) || 0};
-  });
+  const {all, source} = await nodeRecords();
   const live = all.filter(n => n.alive);
-  const tip = Math.max(0, ...live.map(n => n.cut));
+  const heights = live.map(n => n.height).filter(h => h != null);
+  const tip = heights.length ? Math.max(...heights) : null;
   for (const n of all) {
-    n.lag = n.alive ? Math.round((tip - n.cut) / N) : null;          // approx. blocks per chain
-    n.state = !n.alive ? 'down' : n.lag <= 5 ? 'ok' : 'behind';
+    n.lag = n.alive && n.height != null && tip != null ? Math.max(0, Math.round(tip - n.height)) : null;
+    n.state = !n.alive ? 'down' : n.lag == null ? 'unknown' : n.lag <= 5 ? 'ok' : 'behind';
   }
   const c = s => all.filter(n => n.state === s).length;
   $('n-reach').textContent = live.length; $('n-sync').textContent = c('ok'); $('n-behind').textContent = c('behind'); $('n-down').textContent = c('down');
@@ -805,17 +824,17 @@ async function pullNodes() {
 
   updated.nodes = Date.now();
   const latest = Math.max(0, ...all.map(n => n.probe));
-  const note = () => $('n-updated').textContent = `${all.length} nodes crawled. Hosting and country counts include reachable nodes only.` + (latest ? ` Last crawl ${ago(nowTrue() - latest)} ago.` : '');
+  const note = () => $('n-updated').textContent = `${all.length} nodes crawled. Hosting and country counts include reachable nodes only.` + (latest ? ` Last crawl ${ago(nowTrue() - latest)} ago.` : '') + (source === 'kdascan.dnns.es' ? ' Source: kdascan.dnns.es (fallback); heights compare the maximum chain height. Uptime is unavailable from this source.' : ' Source: denascan.com.');
   note(); clockFirst.then(note);   // redo once the server clock is known
   $('n-summary').textContent = `All ${all.length} crawled nodes`;
 
-  const label = {ok: 'In sync', behind: 'Behind', down: 'Unreachable'};
-  const color = {ok: 'var(--teal)', behind: 'var(--orange)', down: 'var(--grey)'};
-  const order = {ok: 0, behind: 1, down: 2};
+  const label = {ok: 'In sync', behind: 'Behind', unknown: 'Height unavailable', down: 'Unreachable'};
+  const color = {ok: 'var(--teal)', behind: 'var(--orange)', unknown: 'var(--grey)', down: 'var(--grey)'};
+  const order = {ok: 0, behind: 1, unknown: 2, down: 3};
   $('n-rows').innerHTML = all.slice().sort((a, b) => order[a.state] - order[b.state] || a.country.localeCompare(b.country) || a.city.localeCompare(b.city)).map(n =>
     `<tr><td>${esc(n.city)}, ${esc(n.country)}</td><td>${esc(n.host)}</td><td><span class="st"><i class="sw" style="background:${color[n.state]}"></i>${label[n.state]}</span></td>` +
-    `<td class="r">${n.state === 'down' ? '–' : n.lag <= 5 ? 'at tip' : '≈ ' + compact(n.lag) + ' blocks'}</td>` +
-    `<td class="r">${n.probes < 50 ? 'new' : fmt(n.ok / n.probes * 100, 1) + '%'}</td></tr>`).join('');
+    `<td class="r">${n.lag == null ? '–' : n.lag <= 5 ? 'at tip' : '≈ ' + compact(n.lag) + ' blocks'}</td>` +
+    `<td class="r">${n.probes == null || n.ok == null || n.probes <= 0 ? '–' : n.probes < 50 ? 'new' : fmt(n.ok / n.probes * 100, 1) + '%'}</td></tr>`).join('');
 
   initMap(); if (!map) return;
   layer.clearLayers();
@@ -823,11 +842,11 @@ async function pullNodes() {
   const byCity = new Map();
   for (const n of all) { if (n.lat == null) continue; const k = n.city + '|' + n.country; if (!byCity.has(k)) byCity.set(k, []); byCity.get(k).push(n); }
   for (const list of byCity.values()) {
-    const ok = list.filter(n => n.state === 'ok').length, bh = list.filter(n => n.state === 'behind').length, dn = list.filter(n => n.state === 'down').length;
-    const cls = (ok + bh) === 0 ? 'down' : bh ? 'mixed' : 'ok';
+    const ok = list.filter(n => n.state === 'ok').length, bh = list.filter(n => n.state === 'behind').length, un = list.filter(n => n.state === 'unknown').length, dn = list.filter(n => n.state === 'down').length;
+    const cls = (ok + bh + un) === 0 ? 'down' : bh || un ? 'mixed' : 'ok';
     const size = 20 + Math.min(16, Math.sqrt(list.length) * 6);
     const icon = L.divIcon({className: '', html: `<div class="pin ${cls}" style="width:${size}px;height:${size}px">${list.length}</div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2]});
-    const parts = [ok && `${ok} in sync`, bh && `${bh} behind`, dn && `${dn} unreachable`].filter(Boolean).join(' · ');
+    const parts = [ok && `${ok} in sync`, bh && `${bh} behind`, un && `${un} reachable (height unavailable)`, dn && `${dn} unreachable`].filter(Boolean).join(' · ');
     const hosts = [...new Set(list.map(n => n.host))].join(', ');
     pts.push([list[0].lat, list[0].lng]);
     L.marker([list[0].lat, list[0].lng], {icon, keyboard: true, title: `${list[0].city}: ${list.length} nodes`})

@@ -1,5 +1,5 @@
 {
-  "checkedAtUtc": "2026-10-07T19:29:46.434890+00:00",
+  "checkedAtUtc": "2026-10-08T10:30:57.135025+00:00",
   "server": "193.122.85.1",
   "oracleRegion": "me-jeddah-1",
   "nodeVersion": "3.2.1",
@@ -14,18 +14,17 @@
     "publicP2p": {
       "endpoint": "https://193.122.85.1:1789/chainweb/0.0/mainnet01/cut",
       "httpStatus": 200,
-      "chainCount": 20
+      "chainCount": 20,
+      "verifiedFromExternalMachine": true
     },
     "synchronization": {
-      "state": "catching-up",
-      "atTip": false,
-      "firstObservedCutHeight": 145859460,
-      "currentCutHeight": 145869360,
-      "advanced": true,
+      "state": "in-sync",
+      "atTip": true,
+      "currentCutHeight": 145943296,
       "bootstrap": "https://fr-1.chainweb-community.org",
-      "bootstrapCutHeight": 145906882,
-      "minBlocksBehindPerChain": 1875,
-      "maxBlocksBehindPerChain": 1877
+      "bootstrapCutHeight": 145943296,
+      "minBlocksBehindPerChain": 0,
+      "maxBlocksBehindPerChain": 0
     }
   },
   "database": {
@@ -35,8 +34,10 @@
     "historicalCoverage": "limited"
   },
   "website": {
-    "oracleCloudClassification": "tested and staged",
-    "liveInstallation": "pending website server sudo authentication",
-    "nodeCrawlerRecordPresent": true
+    "oracleCloudClassification": "live; installed 2026-10-08T10:07:07Z",
+    "nodeCrawlerRecordPresent": true,
+    "crawlerFallbackInstallation": "pending website server sudo authentication",
+    "nodeGatewayLocalChecks": "HTTP 200; CORS *; GET/HEAD only",
+    "nodeGatewayHttps": "pending GoDaddy A record and Oracle ingress TCP 80/443"
   }
 }

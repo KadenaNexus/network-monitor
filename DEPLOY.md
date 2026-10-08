@@ -1,6 +1,6 @@
 # Deploying nodes.kadena.ws
 
-The site is one static file, `client/index.html`. Deploying means copying it over `index.html` in the web root. Nothing else on the server changes: no nginx edit or reload, no new jobs, and the data files are left alone.
+The site is one static file, `client/index.html`. Deploying means copying it over `index.html` in the web root. The crawler fallback also needs the nginx location below on its first deployment; later page swaps do not need a reload. The data files and their jobs are left alone.
 
 ## Where things are
 
@@ -17,6 +17,18 @@ Three things to avoid on this server:
 - **Never remove, move or rename `dist` or `dist/data`, even for a moment.** If `dist/data` disappears, the copy in `update-data.sh` fails, and the sync loop stops for good (both scripts use `set -e`). The numbers then freeze with no visible sign.
 - **Don't run `npm run build` in `/home/zero/monitor` or `/home/zero/monitor-new`.** Both hold the old React source. Vite empties `dist`, including `data/`, and writes an old page back.
 - **Don't reboot without restarting the data jobs.** kdatracker runs in a `screen` session that `deploy` started by hand. The `kdatracker.service` unit is enabled but has been failing and restarting every 5 seconds since about March. `zero`'s sync loop runs in an ordinary shell. Neither comes back on its own after a reboot, so block time, first confirmation and 24h transactions would stop updating until both are restarted.
+
+## Crawler fallback proxy (first deployment)
+
+The primary crawl at `nodes.denascan.com` can be unavailable while the public crawl at `kdascan.dnns.es` is healthy. The latter does not send a CORS header, so the page uses `/api/kdascan/nodes` on this site's origin. The exact nginx location is in [`nginx/kdascan-nodes.location.conf`](nginx/kdascan-nodes.location.conf).
+
+Install that snippet at `/etc/nginx/snippets/kadena-kdascan-nodes.conf`. Back up `/etc/nginx/sites-enabled/nodes.kadena.ws`, then include the snippet inside its HTTPS `server` block:
+
+```nginx
+include /etc/nginx/snippets/kadena-kdascan-nodes.conf;
+```
+
+If the homepage uses the same fallback, include it in the HTTPS `server` block for `kadena.ws` too. Run `sudo nginx -t` before `sudo systemctl reload nginx`. Verify `https://nodes.kadena.ws/api/kdascan/nodes` returns a JSON array containing `193.122.85.1`, rather than the site's HTML. Keep the nginx backup with the page backup for rollback.
 
 ## 0. Check the server first (read-only)
 
@@ -76,7 +88,7 @@ Then open https://nodes.kadena.ws in a private window:
 
 ## Roll back
 
-Only `index.html` changed, so putting the old one back restores the old site. These commands also bring back `assets/` if it has been cleaned up since:
+Putting the old `index.html` back restores the old page. If this deployment also added the fallback proxy, restore the saved nginx site file and reload nginx after `nginx -t` passes. These commands restore the page and bring back `assets/` if it has been cleaned up since:
 
 ```bash
 BK=$(cat ~/nodes-explorer/LAST_BACKUP)       # if this file is gone: ls -1d /home/zero/monitor/dist.bak-*

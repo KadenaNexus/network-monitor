@@ -6,19 +6,21 @@ The front end is one static file, [`client/index.html`](client/index.html), with
 
 ## Where the numbers come from
 
-The browser fetches everything directly, and polling pauses while the tab is hidden.
+The browser fetches most sources directly; the fallback node crawl uses a same-origin nginx proxy because its upstream API does not allow cross-origin requests. Polling pauses while the tab is hidden.
 
 | On the page | Source | Refresh |
 |---|---|---|
 | Live chain strip, throughput (TPS), block height, active chains | `blocksFromDepth` on `https://graphql.chaddex.com/graphql/v0` | 10 s |
 | What's in the latest transactions | `transactions` (latest 500) on the same endpoint | 60 s |
 | Hashrate | `networkInfo` on the same endpoint | 2 min |
-| Node map, node counts and the node table | `https://nodes.denascan.com/api/nodes` | 5 min |
+| Node map, node counts and the node table | `https://nodes.denascan.com/api/nodes`, falling back to `/api/kdascan/nodes` (proxied from `https://kdascan.dnns.es/api/nodos`) | 5 min |
 | Block time, first confirmation (TTFC), 24h transactions and the per-chain split | `/data/*` files served by this site | 30 s |
 
 Leaflet loads from cdnjs (pinned with Subresource Integrity), fonts from Google Fonts, and map tiles from OpenStreetMap.
 
 The status pill reads **Live** while the newest indexed block is less than 90 seconds old, and **Delayed** when it is older, for example when the indexer stalls. It takes the current time from this site's `Date` response header, so a visitor whose device clock is wrong still sees correct ages. A chain counts as active if it produced a block in the last 3 minutes.
+
+The fallback crawl compares each node's maximum chain height with the highest reported by that collector. Denascan reports the sum of all chain heights, which is divided by 20 for comparison. The page names the selected collector; fallback uptime is shown as a dash because `/api/nodos` does not supply probe statistics. Reachable nodes with no height are marked **Height unavailable**.
 
 ## Data files
 

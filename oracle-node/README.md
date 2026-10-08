@@ -65,8 +65,20 @@ The linked dashboard README contains no node setup or three node checks. Use the
 
 During initial download, inspect `sudo journalctl -u chainweb-bootstrap` and `sudo du -sh /var/lib/chainweb`. Retry a failed initial download with `sudo systemctl restart chainweb-bootstrap`, then `sudo systemctl start chainweb-node` after it succeeds.
 
-The recorded deployment checks are in [`verification.json`](verification.json). The service and public endpoint pass. Initial synchronization was still catching up when this report was captured; its cut height was advancing. Repeat the synchronization check to confirm arrival at the current network tip.
+The recorded deployment checks are in [`verification.json`](verification.json). The service and public endpoint pass. On 2026-10-08 at 10:30:57 UTC, all 20 chain heights matched the community reference at cut height 145943296, with zero blocks behind. The public P2P endpoint was also verified from another machine.
 
 ## Oracle Cloud on the dashboard
 
-`client/index.html` maps crawler organization/ISP strings containing `oracle` to `Oracle Cloud`. Hosting counts use reachable nodes from `nodes.denascan.com`; the provider appears when a reachable Oracle node is included in the crawler data. No node or count is fabricated.
+`client/index.html` maps crawler organization/ISP strings containing `oracle` to `Oracle Cloud`. Hosting counts use reachable nodes from `nodes.denascan.com`, with a same-origin proxy to `kdascan.dnns.es` when the primary crawler is unavailable; the provider appears when a reachable Oracle node is included in the selected crawler data. The Oracle label was installed live on 2026-10-08 at 10:07:07 UTC. No node or count is fabricated.
+
+## Public service endpoint for the homepage
+
+nginx is installed and exposes GET/HEAD only for `/info`, `/health-check` and `/chainweb/0.0/mainnet01/cut`, with CORS `*` and a request limit. The local gateway passed HTTP 200 and CORS checks; POST returns 403 and transaction submission paths return 404. Host firewall accepts TCP 80 and 443 and persists the rules.
+
+`node.kadena.ws.conf`, `setup-node-gateway.sh` and `activate-node-https.sh` record the deployed HTTP gateway and the final HTTPS activation step. GoDaddy DNS `node A 193.122.85.1` and Oracle security list/NSG public ingress TCP 80/443 are still required. Once completed, run:
+
+```sh
+ssh ubuntu@193.122.85.1 'sudo bash /home/ubuntu/kadena-homepage-update/activate-node-https.sh'
+```
+
+Verify `https://node.kadena.ws/info`, the CORS header, and the HTTPS cut from another machine. Certbot's renewal timer is enabled. The homepage and website installer are preserved on branch `codex/kadena-homepage-node`, under `deploy/kadena-ws-update`.
