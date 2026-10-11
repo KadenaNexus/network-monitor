@@ -1,0 +1,14 @@
+# https://nodes.kadena.ws/: main goes live, other branches go to preview.kadena.ws/network-monitor/<branch>/ (see KadenaNexus/homepage docs/DEPLOY-STANDARD.md)
+name: deploy
+on:
+  push:
+    paths: ["client/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+jobs:
+  site:
+    uses: KadenaNexus/homepage/.github/workflows/deploy-static.yml@main
+    with:
+      source: client
+      files: "index.html"
+      url: https://nodes.kadena.ws/
+    secrets: inherit
