@@ -151,7 +151,7 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 
 /* chains table */
 .chains{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 3rem}
-@media (max-width:860px){.chains{grid-template-columns:1fr}}
+@media (max-width:860px){.chains{grid-template-columns:1fr}.chains>div+div .crow.h{display:none}}  /* stacked on phones: one heading for chains 0-19, not a second one between 9 and 10 */
 .crow{display:grid;grid-template-columns:3.2rem minmax(0,1fr) 5.4rem 4.6rem;gap:.8rem;align-items:center;padding:.62rem 0;border-bottom:1px solid var(--line);font-size:.95rem}
 .crow.h{font-size:.8rem;color:var(--faint);border-bottom-color:var(--line);padding-top:0}
 .crow .id{font:600 1rem var(--display);color:var(--sand)}
