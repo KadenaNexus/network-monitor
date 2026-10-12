@@ -82,7 +82,7 @@ p{margin:0}
 @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(28,99,123,0)}}
 @media (prefers-reduced-motion:reduce){.pill.live .dot{animation:none}}
 @media (max-width:900px){.nav a{display:none}.part{display:none}.brand{font-size:1rem}.nav{margin-left:auto}}
-@media (max-width:480px){.top .wrap{gap:.5rem}.brand{font-size:.92rem;gap:.4rem}.brand img{width:24px}.pill{padding:.3rem .55rem;font-size:.78rem;flex-shrink:0}.theme{width:2.1rem;height:2.1rem}}
+@media (max-width:480px){.top .wrap{gap:.5rem}.brand{font-size:.92rem;gap:.4rem}.brand img{width:24px}.pill{padding:.3rem .55rem;font-size:.78rem;flex-shrink:0}.pill .lag{display:none}.theme{width:2.1rem;height:2.1rem}}
 
 /* hero */
 .hero{padding-block:2.75rem 1.5rem}
@@ -400,7 +400,8 @@ footer a:hover{color:var(--sand)}
 (() => {
 'use strict';
 const CFG = {
-  cut: 'https://chainweb.chaddex.com/chainweb/0.0/mainnet01/cut',
+  // chain heights and block times straight from a Chainweb node, so the page stays right when the indexer lags
+  node: 'https://api.chainweb-community.org/chainweb/0.0/mainnet01',
   gql: 'https://graphql.chaddex.com/graphql/v0',
   nodes: 'https://nodes.denascan.com/api/nodes',
   data: '/data/',             // served by this site: ttfc, activechains, tx24h, avgblocktime
@@ -439,7 +440,9 @@ const gql = q => getJSON(CFG.gql, {method: 'POST', headers: {'Content-Type': 'ap
 
 /* ---------- state ---------- */
 const blocks = new Map();          // "chain:height" -> {c,h,t,tx}
-const lastByChain = Array(N).fill(null);
+const lastByChain = Array(N).fill(null);   // newest block the indexer has, per chain
+const nodeByChain = Array(N).fill(null);   // newest block the node has, per chain: {h, t}
+let nodeOk = 0;
 let clockSkew = 0, lastOk = 0, maxHeight = 0, tps = null, chainTx = null, avgTx = 0;
 // Server time minus device time, from this site's own Date header, so block ages and the
 // Live/Delayed status stay right on devices whose clock is off. Until it is known, the page
@@ -488,18 +491,60 @@ async function pullBlocks(first) {
   for (const b of blocks.values()) if (b.t > from && b.t <= newest) sum += b.tx;
   tps = sum / CFG.tpsWindowS;
   $('s-tps').innerHTML = fmt(tps, 2) + '<small>TPS</small>';
-  $('h-height').textContent = fmt(maxHeight);
+  renderHeads();
+}
+// The newest block per chain from whichever source has it: the node when the indexer lags.
+const tipOf = c => { const a = lastByChain[c], b = nodeByChain[c]; return !a ? b : !b ? a : b.h > a.h ? b : a; };
+const indexerLag = () => {
+  const newest = Math.max(0, ...lastByChain.filter(Boolean).map(x => x.t)), real = Math.max(0, ...nodeByChain.filter(Boolean).map(x => x.t));
+  return newest && real ? Math.max(0, real - newest) : 0;
+};
+function renderHeads() {
+  const tips = Array.from({length: N}, (_, c) => tipOf(c)), have = tips.filter(Boolean);
+  if (!have.length) return;
+  $('h-height').textContent = fmt(Math.max(...have.map(x => x.h)));
   // active chains: a block in the last 3 minutes. Healthy chains often go more than 60 s between
   // blocks, so a 60 s window showed 15-19/20 on a healthy network about 40% of the time
-  const act = lastByChain.map(x => x && newest - x.t < 180000);
-  const n = act.filter(Boolean).length;
-  $('s-ac').innerHTML = n + '<small>/ 20</small>';
+  const ref = Math.max(...have.map(x => x.t));
+  const act = tips.map(x => x && ref - x.t < 180000);
+  $('s-ac').innerHTML = act.filter(Boolean).length + '<small>/ 20</small>';
   $('s-pips').innerHTML = act.map(a => `<span class="${a ? 'on' : ''}"></span>`).join('');
+  const lag = indexerLag();
+  $('s-tps-s').textContent = lag > LAG_OK ? 'indexer ' + ago(lag) + ' behind' : 'last 3 minutes';
   renderChainAges();
   setStatus();
 }
+
+/* ---------- chain heads from the node ---------- */
+async function nodeHeader(c, hash) {
+  const h = await getJSON(`${CFG.node}/chain/${c}/header/${hash}`, {headers: {Accept: 'application/json;blockheader-encoding=object'}}, 10000);
+  return {h: +h.height, t: h.creationTime / 1000};
+}
+async function pullNode() {
+  const cut = await getJSON(CFG.node + '/cut', {}, 10000);
+  // only chains whose head moved need a header read: about one per chain every 30 s
+  await Promise.all(Array.from({length: N}, async (_, c) => {
+    const e = cut.hashes[c]; if (!e) return;
+    if (nodeByChain[c] && nodeByChain[c].h >= +e.height) return;
+    // if the header read fails, the new height still counts, timed when it was seen
+    try { nodeByChain[c] = await nodeHeader(c, e.hash); } catch (_) { nodeByChain[c] = {h: +e.height, t: nowTrue()}; }
+  }));
+  nodeOk = Date.now();
+  renderHeads();
+}
 function setStatus() {
   const el = $('status'), t = $('status-t');
+  // the network's own state comes from the node; an indexer that lags is named, not mistaken for a stalled network
+  if (nodeOk && Date.now() - nodeOk < 60000) {
+    const real = Math.max(0, ...nodeByChain.filter(Boolean).map(x => x.t)), age = nowTrue() - real, lag = indexerLag();
+    el.classList.remove('live', 'slow');
+    if (age > LAG_OK + 60000) { el.classList.add('slow'); t.textContent = 'No new blocks ' + ago(age); el.title = 'The node has not seen a new block for ' + ago(age) + '.'; return; }
+    el.classList.add('live');
+    t.innerHTML = lag > LAG_OK ? 'Live<span class="lag"> · data ' + ago(lag) + ' late</span>' : 'Live';
+    el.title = lag > LAG_OK ? 'Blocks are arriving normally. The transaction indexer is ' + ago(lag) + ' behind, so throughput, the block strip and the transaction mix are older than the block height.' : '';
+    return;
+  }
+  el.title = '';
   const newest = Math.max(0, ...lastByChain.filter(Boolean).map(x => x.t));
   // real age of the newest indexed block, so a stalled or lagging indexer shows as Delayed
   // (measured against the strip smoothing, as before, while the server clock is unknown)
@@ -703,9 +748,9 @@ function renderChains() {
 function renderChainAges() {
   renderChains();
   const now = nowTrue() - clockSkew;
-  lastByChain.forEach((x, c) => {
-    const r = $('cr-' + c); if (!r || !x) return;
-    const a = now - x.t, el = r.querySelector('.age');
+  lastByChain.forEach((_, c) => {
+    const x = tipOf(c), r = $('cr-' + c); if (!r || !x) return;
+    const a = (nodeByChain[c] === x ? nowTrue() : now) - x.t, el = r.querySelector('.age');
     el.textContent = ago(a) + ' ago'; el.classList.toggle('late', a > 90000);
   });
 }
@@ -864,6 +909,7 @@ pullBlocks(200).catch(() => {}).finally(() => {
   every(pullMix, 60000, () => { $('mix-list').innerHTML = '<li class="err">Recent transactions are unavailable right now.</li>'; });
 });
 every(pullFiles, 30000);
+every(pullNode, 10000, () => setStatus());
 every(pullNetwork, 120000, () => $('s-hr-s').textContent = 'unavailable');
 every(pullNodes, 300000, () => { $('n-updated').textContent = 'Node crawl data is unavailable right now.'; initMap(); });
 setInterval(() => { setStatus(); renderChainAges(); renderUpdated(); if (sel != null) renderDetail(); }, 5000);
