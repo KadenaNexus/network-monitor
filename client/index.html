@@ -147,6 +147,8 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .intro .upd{display:block;margin-top:.4rem}
 @media (max-width:860px){.intro{grid-template-columns:1fr}}
 .muted{color:var(--faint)}
+.src-down{margin:0 0 1.2rem;padding:.8rem 1rem;border-left:3px solid var(--orange);background:var(--orange-soft);color:var(--sand);border-radius:6px;font-size:.92rem;max-width:none}
+.src-down[hidden]{display:none}
 .err{font-size:.92rem;color:var(--orange)}
 
 /* chains table */
@@ -346,6 +348,7 @@ footer a:hover{color:var(--sand)}
         <h2 id="nodes-title">Where the nodes run</h2>
         <p>Public Chainweb nodes found by a network crawler, placed by IP location. A node counts as in sync when its view of the chain is within a few blocks of the network tip.<span class="upd" id="u-nodes"></span></p>
       </div>
+      <p class="src-down" id="n-srcdown" role="status" hidden></p>
       <div class="nodes">
         <div id="map" role="region" aria-label="Map of Kadena nodes"></div>
         <div>
@@ -814,6 +817,7 @@ async function pullNodes() {
   const note = () => $('n-updated').textContent = `${all.length} nodes crawled. Hosting and country counts include reachable nodes only.` + (latest ? ` Last crawl ${ago(nowTrue() - latest)} ago.` : '');
   note(); clockFirst.then(note);   // redo once the server clock is known
   $('n-summary').textContent = `All ${all.length} crawled nodes`;
+  $('n-srcdown').hidden = true;
 
   const label = {ok: 'In sync', behind: 'Behind', down: 'Unreachable'};
   const color = {ok: 'var(--teal)', behind: 'var(--orange)', down: 'var(--grey)'};
@@ -872,7 +876,16 @@ pullBlocks(200).catch(() => {}).finally(() => {
 });
 every(pullFiles, 30000);
 every(pullNetwork, 120000, () => $('s-hr-s').textContent = 'unavailable');
-every(pullNodes, 300000, () => { $('n-updated').textContent = 'Node crawl data is unavailable right now.'; initMap(); });
+every(pullNodes, 300000, () => {
+  // denascan.com (the node crawler) did not answer. Say so plainly instead of leaving dashes that look like an outage.
+  const b = $('n-srcdown');
+  b.textContent = updated.nodes
+    ? `The node crawler (denascan.com) is not responding. Showing the last node data received, ${ago(Date.now() - updated.nodes)} ago. Retrying every 5 minutes.`
+    : 'Node locations are temporarily unavailable: our source, the denascan.com node crawler, is not responding. Chain, block and transaction data on this page are not affected. Retrying every 5 minutes.';
+  b.hidden = false;
+  if (!updated.nodes) $('n-updated').textContent = 'Node crawl data is unavailable right now.';
+  initMap();
+});
 setInterval(() => { setStatus(); renderChainAges(); renderUpdated(); if (sel != null) renderDetail(); }, 5000);
 setInterval(renderUpdated, 1000);
 })();
