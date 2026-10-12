@@ -133,6 +133,7 @@ p{margin:0}
 .stat:first-child{border-left:0;padding-left:0}
 .stat .k{font-size:.85rem;display:flex;gap:.35rem;align-items:center}
 .stat .v{font:700 clamp(1.5rem,2.4vw,2.05rem)/1.15 var(--display);color:var(--sand);margin-top:.25rem;font-variant-numeric:tabular-nums}
+.stat .v.dim{opacity:.5}
 .stat .v small{font:500 .95rem var(--body);color:var(--mist);margin-left:.2rem}
 .stat .s{font-size:.82rem;margin-top:.15rem}
 .pips{display:grid;grid-template-columns:repeat(20,1fr);gap:2px;margin-top:.5rem;max-width:150px}
@@ -519,14 +520,23 @@ function renderHeads() {
   $('s-pips').innerHTML = act.map(a => `<span class="${a ? 'on' : ''}"></span>`).join('');
   const lag = indexerLag();
   $('s-tps-s').textContent = lag > LAG_OK ? 'indexer ' + ago(lag) + ' behind' : 'last 3 minutes';
+  renderHashrate();
   renderChainAges();
   setStatus();
 }
 
 /* ---------- chain heads from the node ---------- */
+// Expected hashes to mine one block on a chain: 2^256 / target (target is 32 bytes, little-endian, base64url)
+const workOf = target => {
+  try {
+    const b = atob(String(target).replace(/-/g, '+').replace(/_/g, '/'));
+    let t = 0n; for (let i = b.length - 1; i >= 0; i--) t = (t << 8n) | BigInt(b.charCodeAt(i));
+    return t > 0n ? Number((1n << 256n) / t) : null;
+  } catch (_) { return null; }
+};
 async function nodeHeader(c, hash) {
   const h = await getJSON(`${CFG.node}/chain/${c}/header/${hash}`, {headers: {Accept: 'application/json;blockheader-encoding=object'}}, 10000);
-  return {h: +h.height, t: h.creationTime / 1000};
+  return {h: +h.height, t: h.creationTime / 1000, w: workOf(h.target)};
 }
 async function pullNode() {
   const cut = await getJSON(CFG.node + '/cut', {}, 10000);
@@ -535,7 +545,7 @@ async function pullNode() {
     const e = cut.hashes[c]; if (!e) return;
     if (nodeByChain[c] && nodeByChain[c].h >= +e.height) return;
     // if the header read fails, the new height still counts, timed when it was seen
-    try { nodeByChain[c] = await nodeHeader(c, e.hash); } catch (_) { nodeByChain[c] = {h: +e.height, t: nowTrue()}; }
+    try { nodeByChain[c] = await nodeHeader(c, e.hash); } catch (_) { nodeByChain[c] = {h: +e.height, t: nowTrue(), w: nodeByChain[c] && nodeByChain[c].w}; }
   }));
   nodeOk = Date.now();
   renderHeads();
@@ -764,11 +774,38 @@ function renderChainAges() {
 }
 
 /* ---------- network info ---------- */
+// The indexer's hashrate is computed from the blocks it has; when it stalls the figure drops far below the real
+// network (167-758 TH/s instead of ~15 PH/s on 12 Oct 2026). While it is more than HR_LAG behind, or down, the
+// page uses its own estimate from the node instead: the difficulty of each chain's newest block over the 30 s
+// block target, summed over the 20 chains. On 12 Oct it read ~17 PH/s while the indexer's own figure moved between
+// 12.7 and 16.1 PH/s, so the two sources differ by up to ~25% and the label says which one is shown.
+const HR_LAG = 5 * 60 * 1000;
+let hrIndexer = null;
+const fmtHr = hr => hr >= 1e15 ? fmt(hr / 1e15, 1) + '<small>PH/s</small>' : fmt(hr / 1e12, 1) + '<small>TH/s</small>';
+function nodeHashrate() {
+  const w = nodeByChain.map(x => x && x.w).filter(Number.isFinite);
+  return w.length === N ? w.reduce((a, b) => a + b, 0) / 30 : null;
+}
+function renderHashrate() {
+  const lag = indexerLag(), fromNode = nodeHashrate(), el = $('s-hr'), sub = $('s-hr-s');
+  const stale = !hrIndexer || lag > HR_LAG;
+  if (!stale) { el.innerHTML = fmtHr(hrIndexer.v); sub.textContent = 'network estimate'; el.classList.remove('dim'); el.title = ''; return; }
+  if (fromNode) {
+    el.innerHTML = fmtHr(fromNode); el.classList.remove('dim');
+    sub.textContent = hrIndexer ? 'from the node, indexer ' + ago(lag) + ' behind' : 'estimate from the node';
+    el.title = 'Estimated from the difficulty of the newest block on each chain and the 30-second block target.';
+  } else if (hrIndexer) {
+    el.innerHTML = fmtHr(hrIndexer.v); el.classList.add('dim');
+    sub.textContent = 'delayed, indexer ' + ago(lag) + ' behind'; el.title = '';
+  } else {
+    el.innerHTML = '&ndash;'; sub.textContent = 'unavailable';
+  }
+}
 async function pullNetwork() {
   const d = await gql('{ networkInfo { networkHashRate } }');
-  const hr = d.networkInfo.networkHashRate;
-  $('s-hr').innerHTML = hr >= 1e15 ? fmt(hr / 1e15, 1) + '<small>PH/s</small>' : fmt(hr / 1e12, 1) + '<small>TH/s</small>';
-  $('s-hr-s').textContent = 'network estimate';
+  const hr = Number(d.networkInfo.networkHashRate);
+  hrIndexer = Number.isFinite(hr) && hr > 0 ? {v: hr, at: Date.now()} : null;
+  renderHashrate();
 }
 
 /* ---------- transaction mix ---------- */
@@ -923,7 +960,7 @@ pullBlocks(200).catch(() => {}).finally(() => {
 });
 every(pullFiles, 30000);
 every(pullNode, 10000, () => setStatus());
-every(pullNetwork, 120000, () => $('s-hr-s').textContent = 'unavailable');
+every(pullNetwork, 120000, () => { hrIndexer = null; renderHashrate(); });
 every(pullNodes, 300000, () => {
   // denascan.com (the node crawler) did not answer. Say so plainly instead of leaving dashes that look like an outage.
   const b = $('n-srcdown');
