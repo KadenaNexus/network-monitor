@@ -279,6 +279,59 @@ footer a:hover{color:var(--sand)}
    "publisher": {
     "@id": "https://kadena.ws/#org"
    }
+  },
+  {
+   "@type": "FAQPage",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "How many chains does Kadena have?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Kadena mainnet runs 20 chains in parallel. Each chain is braided to three others, so every block also references the latest blocks on its neighbors. The Chains section above shows all 20 live."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "What is Kadena's block time?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Each chain targets one block every 30 seconds. With 20 chains, the network as a whole produces around 40 blocks a minute. The Block time figure at the top shows the live network average."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How fast is a Kadena transaction confirmed?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "The First confirmation (TTFC) figure at the top shows the live median time from submitting a transaction until it is first included in a block. How many further blocks you wait for after that is up to the app or exchange."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "How many transactions per second does Kadena handle?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Where are Kadena nodes located?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "The node map shows public Chainweb nodes found by a network crawler, placed by IP location, with whether each is in sync. Kadena Nexus runs one of them in Jeddah, Saudi Arabia."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Is this a block explorer?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. It is a live view of how the network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer. The monitor is free and needs no account or wallet."
+     }
+    }
+   ]
   }
  ]
 }
@@ -431,6 +484,19 @@ footer a:hover{color:var(--sand)}
         <div><h3>Transactions, 24h</h3><p>Successful transactions across all 20 chains over a rolling 24-hour window, with the per-chain split shown in the Chains section.</p></div>
         <div><h3>Transaction mix</h3><p>The latest 500 transactions grouped by the first contract function they call. "Throughput without it" scales current TPS by the share of everything except the top function.</p></div>
         <div><h3>Nodes</h3><p>A public crawler probes known Chainweb peers. "Behind tip" compares each node's cut height with the highest one seen; uptime is the share of probes that answered.</p></div>
+      </div>
+    </div>
+  </section>
+  <section class="block" id="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="intro"><h2 id="faq-title">Questions about the Kadena network</h2><p>Short answers to what people most often ask about Kadena mainnet, pointing to the live figure on this page where there is one.</p></div>
+      <div class="method">
+        <div><h3>How many chains does Kadena have?</h3><p>Kadena mainnet runs 20 chains in parallel. Each chain is braided to three others, so every block also references the latest blocks on its neighbors. The Chains section above shows all 20 live.</p></div>
+        <div><h3>What is Kadena's block time?</h3><p>Each chain targets one block every 30 seconds. With 20 chains, the network as a whole produces around 40 blocks a minute. The Block time figure at the top shows the live network average.</p></div>
+        <div><h3>How fast is a Kadena transaction confirmed?</h3><p>The First confirmation (TTFC) figure at the top shows the live median time from submitting a transaction until it is first included in a block. How many further blocks you wait for after that is up to the app or exchange.</p></div>
+        <div><h3>How many transactions per second does Kadena handle?</h3><p>The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them.</p></div>
+        <div><h3>Where are Kadena nodes located?</h3><p>The node map shows public Chainweb nodes found by a network crawler, placed by IP location, with whether each is in sync. Kadena Nexus runs one of them in Jeddah, Saudi Arabia.</p></div>
+        <div><h3>Is this a block explorer?</h3><p>No. It is a live view of how the network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer. The monitor is free and needs no account or wallet.</p></div>
       </div>
     </div>
   </section>
