@@ -191,10 +191,15 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .facts .hl b{color:var(--orange)}
 
 /* nodes */
-.nodes{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:2rem;align-items:stretch}
-@media (max-width:960px){.nodes{grid-template-columns:1fr}}
-#map{height:100%;min-height:520px;border-radius:18px;border:1px solid var(--line);background:var(--panel);z-index:1}
-@media (max-width:960px){#map{height:420px;min-height:0}}
+/* The map keeps the world's shape (16:9 is the band of latitudes MAP_S..MAP_N at full width), so it never
+   shows empty space above or below the world. Hosting sits under the map so the two columns stay even. */
+.nodes{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);grid-template-areas:"map side" "host side";gap:0 2rem;align-items:start}
+.nodes .side{grid-area:side}
+.nodes .host{grid-area:host}
+.nodes .host #n-hosts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 2.5rem}
+@media (max-width:960px){.nodes{grid-template-columns:1fr;grid-template-areas:"map" "side" "host";gap:0}.nodes .side{margin-top:1.6rem}}
+@media (max-width:560px){.nodes .host #n-hosts{grid-template-columns:1fr}}
+#map{grid-area:map;width:100%;aspect-ratio:16/9;border-radius:18px;border:1px solid var(--line);background:var(--panel);z-index:1}
 .counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .counts div{padding:1rem 1.15rem;border-top:1px solid var(--line)}
 .counts div:nth-child(-n+2){border-top:0}
@@ -217,6 +222,8 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .pin.down{background:var(--grey);color:var(--sand)}
 .leaflet-container{font-family:var(--body);background:var(--panel)}
 .leaflet-tile-pane{filter:grayscale(1) contrast(.85) brightness(1.08) opacity(.75)}
+/* Leaflet blends tiles with plus-lighter; under the grey filter at in-between zoom levels that leaves hairline seams */
+#map .leaflet-tile{mix-blend-mode:normal}
 :root[data-theme="dark"] .leaflet-tile-pane,:root:not([data-theme="light"]).sys-dark .leaflet-tile-pane{filter:invert(1) grayscale(1) brightness(.75) contrast(.9) opacity(.55)}
 .leaflet-bar a,.leaflet-popup-content-wrapper,.leaflet-popup-tip,.leaflet-control-attribution{background:var(--panel)!important;color:var(--sand)!important;border-color:var(--line)!important}
 .leaflet-control-attribution a{color:var(--teal)!important}
@@ -361,7 +368,7 @@ footer a:hover{color:var(--sand)}
       <p class="src-down" id="n-srcdown" role="status" hidden></p>
       <div class="nodes">
         <div id="map" role="region" aria-label="Map of Kadena nodes"></div>
-        <div>
+        <div class="side">
           <div class="counts">
             <div><b id="n-reach">&ndash;</b><span>Reachable</span></div>
             <div><b id="n-sync">&ndash;</b><span><i class="sw" style="background:var(--teal)"></i>In sync</span></div>
@@ -369,9 +376,9 @@ footer a:hover{color:var(--sand)}
             <div><b id="n-down">&ndash;</b><span><i class="sw" style="background:var(--grey)"></i>Unreachable</span></div>
           </div>
           <div class="bars"><h3>Countries</h3><div id="n-countries"></div></div>
-          <div class="bars"><h3>Hosting</h3><div id="n-hosts"></div></div>
           <p class="note muted" id="n-updated" style="margin-top:1rem"></p>
         </div>
+        <div class="bars host"><h3>Hosting</h3><div id="n-hosts"></div></div>
       </div>
       <details class="table">
         <summary id="n-summary">All crawled nodes</summary>
@@ -866,14 +873,34 @@ const hostOf = org => {
   if (o.includes('microsoft') || o.includes('azure')) return 'Azure';
   return 'Other / independent';
 };
+// The map box used to be as tall as the lists beside it, taller than the whole world at a whole-number zoom,
+// which left an empty band above the map. It now has the world's shape; to keep it filled at any size the lowest zoom is
+// the one at which the band of latitudes with land and nodes (MAP_S to MAP_N) is as tall as the box (and the
+// world at least as wide), and panning stops at that band.
+const MAP_N = 78, MAP_S = -58;
+const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+function fillZoom() {
+  const el = map.getContainer(), h = el.clientHeight, w = el.clientWidth;
+  if (!h || !w) return 1;
+  const band = (mercY(MAP_N) - mercY(MAP_S)) / (2 * Math.PI);  // share of the world's height
+  return Math.max(Math.log2(h / (256 * band)), Math.log2(w / 256));
+}
+function fitWorld() {
+  const z = Math.ceil(fillZoom() * 4) / 4;                       // zoomSnap is 0.25
+  map.setMinZoom(z);
+  if (map.getZoom() < z) map.setZoom(z, {animate: false});
+}
 function initMap() {
   if (!window.L || map) return;
-  map = L.map('map', {scrollWheelZoom: false, dragging: !L.Browser.mobile, worldCopyJump: true, minZoom: 1, attributionControl: true}).setView([28, 25], 2);
+  map = L.map('map', {scrollWheelZoom: false, dragging: !L.Browser.mobile, worldCopyJump: true, attributionControl: true,
+    zoomSnap: 0.25, maxBounds: [[MAP_S, -720], [MAP_N, 720]], maxBoundsViscosity: 1}).setView([28, 25], 2);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 10,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
   layer = L.layerGroup().addTo(map);
+  fitWorld();
+  map.on('resize', fitWorld);
 }
 async function pullNodes() {
   const d = await getJSON(CFG.nodes, {}, 20000);
@@ -934,7 +961,8 @@ async function pullNodes() {
     L.marker([list[0].lat, list[0].lng], {icon, keyboard: true, title: `${list[0].city}: ${list.length} nodes`})
       .bindPopup(`<b>${esc(list[0].city)}, ${esc(list[0].country)}</b><br>${parts}<br><span style="color:#4F6B76">${esc(hosts)}</span>`).addTo(layer);
   }
-  if (pts.length && !map._fitted) { map.fitBounds(pts, {padding: [30, 30], maxZoom: 3}); map._fitted = true; }
+  map.invalidateSize(); // the lists beside the map may have changed its height
+  if (pts.length && !map._fitted) { fitWorld(); map.fitBounds(pts, {padding: [30, 30], maxZoom: 3}); map._fitted = true; }
 }
 
 /* ---------- scheduling ---------- */
