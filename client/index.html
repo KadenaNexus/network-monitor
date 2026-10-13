@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>if(!/^\/(index\.html)?$/.test(location.pathname)){const m=document.createElement('meta');m.name='robots';m.content='noindex';document.head.appendChild(m)}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kadena Network Monitor | Kadena Nexus</title>
 <meta name="description" content="Live Kadena mainnet data: blocks arriving on all 20 chains, throughput, confirmation times, what is in recent transactions, and where the nodes are.">
@@ -31,7 +32,7 @@
 <style>
 :root{
   --ink:#FFFFFF; --panel:#F2F6F7; --line:#D6E0E4;
-  --sand:#123A48; --mist:#4F6B76; --faint:#8AA0A9;
+  --sand:#123A48; --mist:#4F6B76; --faint:#5E737C;
   --teal:#1C637B; --teal-soft:#D8E8EE; --orange:#E2710A; --orange-soft:#FBE6D3;--green:#1F8A4C;
   --deep:#123A48; --grey:#B7C4CA;
   --c-label:#8AA0A9; --c-lane1:#EEF3F5; --c-lane2:#E4ECEF; --c-block:#1C637B; --c-new:#E2710A; --c-empty:#B7C4CA;
@@ -743,7 +744,6 @@ function draw() {
     ctx.fillRect(x - s / 2, y - s / 2, s, s); ctx.globalAlpha = 1;
     hit.push({x, y, r: Math.max(s / 2, 6), b});
   }
-  if (!still) requestAnimationFrame(draw);
 }
 cv.addEventListener('mousemove', e => {
   const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -1087,7 +1087,16 @@ const mq = matchMedia('(prefers-color-scheme: dark)'), onScheme = () => { readTh
 mq.addEventListener ? mq.addEventListener('change', onScheme) : mq.addListener(onScheme);
 renderChains(); sizeCanvas(); addEventListener('resize', () => { sizeCanvas(); if (still) draw(); });
 if (still) setInterval(draw, 5000);
-requestAnimationFrame(draw);
+// Performance: blocks drift about 2 px a second, so 10 frames a second looks the same as 60;
+// skip drawing while the strip is off screen.
+let stripVis = true, lastFrame = 0;
+new IntersectionObserver(([e]) => { stripVis = e.isIntersecting; }).observe(cv);
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (still || !stripVis || now - lastFrame < 100) return;
+  lastFrame = now; draw();
+}
+draw(); requestAnimationFrame(frame);
 
 pullBlocks(200).catch(() => {}).finally(() => {
   firstPull = true; setStatus();
