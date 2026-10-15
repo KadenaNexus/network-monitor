@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <script>if(!/^\/(index\.html)?$/.test(location.pathname)){const m=document.createElement('meta');m.name='robots';m.content='noindex';document.head.appendChild(m)}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kadena Network Monitor | Kadena Nexus</title>
-<meta name="description" content="Live Kadena mainnet data: blocks arriving on all 20 chains, throughput, confirmation times, what is in recent transactions, and where the nodes are.">
+<title>Kadena Network Monitor: live Kadena blocks, TPS and nodes | Kadena Nexus</title>
+<meta name="description" content="Live Kadena mainnet data: every block on all 20 chains, transactions per second, block time, confirmation times and the node map, with links to Kadena block explorers for looking up a transaction.">
 <link rel="canonical" href="https://nodes.kadena.ws/">
 <meta property="og:title" content="Kadena Network Monitor">
 <meta property="og:description" content="Live blocks on all 20 Kadena chains, throughput, confirmation times, and the global node map.">
@@ -328,10 +328,10 @@ footer a:hover{color:var(--sand)}
     },
     {
      "@type": "Question",
-     "name": "Is this a block explorer?",
+     "name": "Is this a Kadena block explorer?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "No. It is a live view of how the network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer. The monitor is free and needs no account or wallet."
+      "text": "No. It is a live view of how the Kadena network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer such as the community Chainweb explorer (explorer.chainweb-community.org) or Denascan (denascan.com). The former explorer at explorer.kadena.io is no longer online. The monitor is free and needs no account or wallet."
      }
     }
    ]
@@ -499,7 +499,7 @@ footer a:hover{color:var(--sand)}
         <div><h3>How fast is a Kadena transaction confirmed?</h3><p>The First confirmation (TTFC) figure at the top shows the live median time from submitting a transaction until it is first included in a block. How many further blocks you wait for after that is up to the app or exchange.</p></div>
         <div><h3>How many transactions per second does Kadena handle?</h3><p>The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them.</p></div>
         <div><h3>Where are Kadena nodes located?</h3><p>The node map shows public Chainweb nodes found by a network crawler, placed by IP location, with whether each is in sync. Kadena Nexus runs one of them in Jeddah, Saudi Arabia.</p></div>
-        <div><h3>Is this a block explorer?</h3><p>No. It is a live view of how the network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer. The monitor is free and needs no account or wallet.</p></div>
+        <div><h3>Is this a Kadena block explorer?</h3><p>No. It is a live view of how the Kadena network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer such as the <a href="https://explorer.chainweb-community.org/">community Chainweb explorer</a> or <a href="https://denascan.com/">Denascan</a>. The former explorer at explorer.kadena.io is no longer online. The monitor is free and needs no account or wallet.</p></div>
       </div>
     </div>
   </section>
