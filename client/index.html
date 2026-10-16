@@ -219,6 +219,7 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .brow.home{color:var(--green);font-weight:600;border-bottom:1px solid var(--line);padding-bottom:.55rem;margin-bottom:.3rem}
 .brow.home .b span{background:var(--green)}
 .brow .tag{display:block;font-size:.72rem;font-weight:500;opacity:.85}
+#n-rows .tag{font-size:.72rem;font-weight:500;opacity:.8;white-space:nowrap}
 .pin{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font:600 12px/1 var(--body);border:2px solid var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.35)}
 .pin.ok{background:var(--teal)}
 .pin.mixed{background:var(--orange)}
@@ -486,7 +487,7 @@ footer a:hover{color:var(--sand)}
         <div><h3>Active chains</h3><p>A chain is active if it produced at least one block in the last 3 minutes.</p></div>
         <div><h3>Transactions, 24h</h3><p>Successful transactions across all 20 chains over a rolling 24-hour window, with the per-chain split shown in the Chains section.</p></div>
         <div><h3>Transaction mix</h3><p>The latest 500 transactions grouped by the first contract function they call. "Throughput without it" scales current TPS by the share of everything except the top function.</p></div>
-        <div><h3>Nodes</h3><p>A public crawler probes known Chainweb peers. "Behind tip" compares each node's cut height with the highest one seen; uptime is the share of probes that answered.</p></div>
+        <div><h3>Nodes</h3><p>Our crawler, run by Kadena Nexus and started from our Jeddah node, probes known Chainweb peers every 10 minutes. "Behind tip" compares each node's cut height with the highest one seen; uptime is the share of probes that answered.</p></div>
       </div>
     </div>
   </section>
@@ -507,7 +508,7 @@ footer a:hover{color:var(--sand)}
 
 <footer>
   <div class="wrap">
-    <span>Data: Chainweb node and GraphQL indexer (chaddex.com), node crawl (denascan.com), map &copy; OpenStreetMap contributors.</span>
+    <span>Data: Chainweb node and GraphQL indexer (chaddex.com), node crawl (Kadena Nexus crawler, seeded from our Jeddah node), map &copy; OpenStreetMap contributors.</span>
     <nav aria-label="Footer">
       <a href="https://kadena.ws/">Kadena Nexus</a>
       <a href="https://adoption.kadena.ws/">Adoption Index</a>
@@ -529,7 +530,8 @@ const CFG = {
   // chain heights and block times straight from a Chainweb node, so the page stays right when the indexer lags
   node: 'https://api.chainweb-community.org/chainweb/0.0/mainnet01',
   gql: 'https://graphql.chaddex.com/graphql/v0',
-  nodes: 'https://nodes.denascan.com/api/nodes',
+  // our own crawler (escrow-admin repo, lib/nodes.mjs): every 10 minutes, starting from our Jeddah node and its peers
+  nodes: 'https://fluffy-hummingbird-d7ff3d.netlify.app/api/nodes',
   data: '/data/',             // served by this site: ttfc, activechains, tx24h, avgblocktime
   windowMs: 4 * 60 * 1000,    // visible span of the chain strip
   tpsWindowS: 180,
@@ -546,7 +548,7 @@ const compact = n => n >= 1e6 ? fmt(n / 1e6, 2) + 'M' : n >= 1e4 ? fmt(n / 1e3, 
 const ago = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : s < 3600 ? Math.round(s / 60) + 'm' : Math.round(s / 3600) + 'h'; };
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
-// the node crawler sends UTC times without a zone ("2026-10-03T20:14:40.379092"); read them as UTC, not local time
+// older crawl data had UTC times without a zone ("2026-10-03T20:14:40.379092"); read them as UTC, not local time
 const utc = s => { if (!s) return NaN; s = String(s).replace(/(\.\d{3})\d+/, '$1'); return Date.parse(/(Z|[+-]\d\d:?\d\d)$/i.test(s) ? s : s + 'Z'); };
 
 async function getJSON(url, opts = {}, ms = 12000) {
@@ -1010,7 +1012,7 @@ async function pullNodes() {
     const m = n.metadata || {};
     return {city: n.city || m.region || 'Unknown', country: n.country || '–', lat: n.coordinate && n.coordinate.lat, lng: n.coordinate && n.coordinate.lng,
       host: hostOf((m.org || '') + ' ' + (m.isp || '')), alive: m.status === 'active', cut: m.cut_height || 0,
-      ok: m.successful_probes || 0, probes: m.total_probes || 0, probe: utc(m.last_probe) || 0};
+      ok: m.successful_probes || 0, probes: m.total_probes || 0, probe: utc(m.last_probe) || 0, home: !!m.home};
   });
   const live = all.filter(n => n.alive);
   const tip = Math.max(0, ...live.map(n => n.cut));
@@ -1034,16 +1036,23 @@ async function pullNodes() {
 
   updated.nodes = Date.now();
   const latest = Math.max(0, ...all.map(n => n.probe));
-  const note = () => $('n-updated').textContent = `${all.length} nodes crawled. Hosting and country counts include reachable nodes only.` + (latest ? ` Last crawl ${ago(nowTrue() - latest)} ago.` : '');
+  const note = () => {
+    $('n-updated').textContent = `${all.length} nodes crawled. Hosting and country counts include reachable nodes only.` + (latest ? ` Last crawl ${ago(nowTrue() - latest)} ago.` : '');
+    // A crawl that stopped running makes every node look unreachable (what happened with the old source in Oct 2026).
+    // Say so instead of letting a stale crawl look like a network outage.
+    const stale = latest && nowTrue() - latest > 2 * 3600 * 1000;
+    const b = $('n-srcdown');
+    if (stale) b.textContent = `The node crawl last ran ${ago(nowTrue() - latest)} ago, so node status below may be out of date. Chain, block and transaction data on this page are live and not affected.`;
+    b.hidden = !stale;
+  };
   note(); clockFirst.then(note);   // redo once the server clock is known
   $('n-summary').textContent = `All ${all.length} crawled nodes`;
-  $('n-srcdown').hidden = true;
 
   const label = {ok: 'In sync', behind: 'Behind', down: 'Unreachable'};
   const color = {ok: 'var(--teal)', behind: 'var(--orange)', down: 'var(--grey)'};
   const order = {ok: 0, behind: 1, down: 2};
   $('n-rows').innerHTML = all.slice().sort((a, b) => order[a.state] - order[b.state] || a.country.localeCompare(b.country) || a.city.localeCompare(b.city)).map(n =>
-    `<tr><td>${esc(n.city)}, ${esc(n.country)}</td><td>${esc(n.host)}</td><td><span class="st"><i class="sw" style="background:${color[n.state]}"></i>${label[n.state]}</span></td>` +
+    `<tr><td>${esc(n.city)}, ${esc(n.country)}${n.home ? ' <small class="tag">Kadena Nexus node</small>' : ''}</td><td>${esc(n.host)}</td><td><span class="st"><i class="sw" style="background:${color[n.state]}"></i>${label[n.state]}</span></td>` +
     `<td class="r">${n.state === 'down' ? '–' : n.lag <= 5 ? 'at tip' : '≈ ' + compact(n.lag) + ' blocks'}</td>` +
     `<td class="r">${n.probes < 50 ? 'new' : fmt(n.ok / n.probes * 100, 1) + '%'}</td></tr>`).join('');
 
@@ -1108,11 +1117,11 @@ every(pullFiles, 30000);
 every(pullNode, 10000, () => setStatus());
 every(pullNetwork, 120000, () => { hrIndexer = null; renderHashrate(); });
 every(pullNodes, 300000, () => {
-  // denascan.com (the node crawler) did not answer. Say so plainly instead of leaving dashes that look like an outage.
+  // the node crawler did not answer. Say so plainly instead of leaving dashes that look like an outage.
   const b = $('n-srcdown');
   b.textContent = updated.nodes
-    ? `The node crawler (denascan.com) is not responding. Showing the last node data received, ${ago(Date.now() - updated.nodes)} ago. Retrying every 5 minutes.`
-    : 'Node locations are temporarily unavailable: our source, the denascan.com node crawler, is not responding. Chain, block and transaction data on this page are not affected. Retrying every 5 minutes.';
+    ? `The node crawler is not responding. Showing the last node data received, ${ago(Date.now() - updated.nodes)} ago. Retrying every 5 minutes.`
+    : 'Node locations are temporarily unavailable: the node crawler is not responding. Chain, block and transaction data on this page are not affected. Retrying every 5 minutes.';
   b.hidden = false;
   if (!updated.nodes) $('n-updated').textContent = 'Node crawl data is unavailable right now.';
   initMap();
