@@ -199,9 +199,9 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .nodes{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);grid-template-areas:"map side" "host side";gap:0 2rem;align-items:start}
 .nodes .side{grid-area:side}
 .nodes .host{grid-area:host}
-.nodes .host #n-hosts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 2.5rem}
+.nodes .host #n-hosts,.nodes .host #n-versions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 2.5rem}
 @media (max-width:960px){.nodes{grid-template-columns:1fr;grid-template-areas:"map" "side" "host";gap:0}.nodes .side{margin-top:1.6rem}}
-@media (max-width:560px){.nodes .host #n-hosts{grid-template-columns:1fr}}
+@media (max-width:560px){.nodes .host #n-hosts,.nodes .host #n-versions{grid-template-columns:1fr}}
 #map{grid-area:map;width:100%;aspect-ratio:16/9;border-radius:18px;border:1px solid var(--line);background:var(--panel);z-index:1}
 .counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .counts div{padding:1rem 1.15rem;border-top:1px solid var(--line)}
@@ -220,6 +220,10 @@ section.block{padding-block:clamp(3.5rem,7vw,5.5rem);border-top:1px solid var(--
 .brow.home .b span{background:var(--green)}
 .brow .tag{display:block;font-size:.72rem;font-weight:500;opacity:.85}
 #n-rows .tag{font-size:.72rem;font-weight:500;opacity:.8;white-space:nowrap}
+#n-rows .addr{display:block;font-size:.76rem;color:var(--muted);font-variant-numeric:tabular-nums;word-break:break-all}
+table.ntable{min-width:980px}
+.nodes .host .vers{margin-top:1.4rem}
+.pop-n{display:block;font-size:.8rem;color:#4F6B76;margin-top:2px}
 .pin{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font:600 12px/1 var(--body);border:2px solid var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.35)}
 .pin.ok{background:var(--teal)}
 .pin.mixed{background:var(--orange)}
@@ -466,12 +470,13 @@ footer a:hover{color:var(--sand)}
           <div class="bars"><h3>Countries</h3><div id="n-countries"></div></div>
           <p class="note muted" id="n-updated" style="margin-top:1rem"></p>
         </div>
-        <div class="bars host"><h3>Hosting</h3><div id="n-hosts"></div></div>
+        <div class="bars host"><h3>Hosting</h3><div id="n-hosts"></div>
+          <div class="vers" id="n-vers-wrap" hidden><h3>Software version</h3><div id="n-versions"></div></div></div>
       </div>
       <details class="table">
         <summary id="n-summary">All crawled nodes</summary>
-        <div class="tscroll"><table>
-          <thead><tr><th>Location</th><th>Hosting</th><th>Status</th><th class="r">Behind tip</th><th class="r">Uptime</th></tr></thead>
+        <div class="tscroll"><table class="ntable">
+          <thead><tr><th>Location</th><th>Hosting</th><th>Status</th><th class="r">Behind tip</th><th>Version</th><th class="r" title="How many other nodes this node knows about">Peers</th><th class="r" title="Average time this node took to answer our crawler">Response</th><th class="r" title="Share of our checks it answered, since we started tracking it">Uptime</th></tr></thead>
           <tbody id="n-rows"></tbody>
         </table></div>
       </details>
@@ -487,7 +492,7 @@ footer a:hover{color:var(--sand)}
         <div><h3>Active chains</h3><p>A chain is active if it produced at least one block in the last 3 minutes.</p></div>
         <div><h3>Transactions, 24h</h3><p>Successful transactions across all 20 chains over a rolling 24-hour window, with the per-chain split shown in the Chains section.</p></div>
         <div><h3>Transaction mix</h3><p>The latest 500 transactions grouped by the first contract function they call. "Throughput without it" scales current TPS by the share of everything except the top function.</p></div>
-        <div><h3>Nodes</h3><p>Our crawler, run by Kadena Nexus and started from our Jeddah node, probes known Chainweb peers every 10 minutes. "Behind tip" compares each node's cut height with the highest one seen; uptime is the share of probes that answered.</p></div>
+        <div><h3>Nodes</h3><p>Our crawler, run by Kadena Nexus and started from our Jeddah node, probes known Chainweb peers every 10 minutes. "Behind tip" compares each node's cut height with the highest one seen. Version is the Chainweb software the node reports, peers is how many other nodes it knows about, and response is its average answer time to our crawler, so it also reflects the distance between them. Uptime is the share of our checks it answered since we started tracking it.</p></div>
       </div>
     </div>
   </section>
@@ -1012,7 +1017,9 @@ async function pullNodes() {
     const m = n.metadata || {};
     return {city: n.city || m.region || 'Unknown', country: n.country || '–', lat: n.coordinate && n.coordinate.lat, lng: n.coordinate && n.coordinate.lng,
       host: hostOf((m.org || '') + ' ' + (m.isp || '')), alive: m.status === 'active', cut: m.cut_height || 0,
-      ok: m.successful_probes || 0, probes: m.total_probes || 0, probe: utc(m.last_probe) || 0, home: !!m.home};
+      ok: m.successful_probes || 0, probes: m.total_probes || 0, probe: utc(m.last_probe) || 0, home: !!m.home,
+      name: n.name || '', ver: m.package_version || null, peers: m.peer_count == null ? null : m.peer_count, peersMore: !!m.peer_count_more,
+      ms: m.avg_response_time_ms == null ? m.response_time_ms : m.avg_response_time_ms, since: utc(m.first_seen) || 0};
   });
   const live = all.filter(n => n.alive);
   const tip = Math.max(0, ...live.map(n => n.cut));
@@ -1031,8 +1038,14 @@ async function pullNodes() {
   // Every country is listed (no "Others"); Saudi Arabia, home of the Kadena Nexus node, is pinned first and labeled.
   const countries = group('country'), isHome = k => /^(saudi arabia|sa)$/i.test(String(k).trim());
   const home = countries.filter(([k]) => isHome(k)).map(([k, v]) => ['Saudi Arabia', v, true]);
-  barList('n-countries', home.concat(countries.filter(([k]) => !isHome(k))));
+  // nodes not yet placed by IP are left out of the country list (they still count in the totals and the table)
+  barList('n-countries', home.concat(countries.filter(([k]) => !isHome(k) && k !== '–')));
   barList('n-hosts', group('host'));
+  // versions of the reachable nodes, newest first (only shown once the crawler has reported some)
+  const vnum = v => String(v).split(/[.-]/).map(x => (+x || 0) + 1000).join('.');
+  const vers = group('ver').filter(([v]) => v && v !== 'null').sort((a, b) => vnum(b[0]).localeCompare(vnum(a[0])));
+  $('n-vers-wrap').hidden = !vers.length;
+  if (vers.length) barList('n-versions', vers.map(([v, k]) => ['v' + v, k]));
 
   updated.nodes = Date.now();
   const latest = Math.max(0, ...all.map(n => n.probe));
@@ -1051,10 +1064,18 @@ async function pullNodes() {
   const label = {ok: 'In sync', behind: 'Behind', down: 'Unreachable'};
   const color = {ok: 'var(--teal)', behind: 'var(--orange)', down: 'var(--grey)'};
   const order = {ok: 0, behind: 1, down: 2};
-  $('n-rows').innerHTML = all.slice().sort((a, b) => order[a.state] - order[b.state] || a.country.localeCompare(b.country) || a.city.localeCompare(b.city)).map(n =>
-    `<tr><td>${esc(n.city)}, ${esc(n.country)}${n.home ? ' <small class="tag">Kadena Nexus node</small>' : ''}</td><td>${esc(n.host)}</td><td><span class="st"><i class="sw" style="background:${color[n.state]}"></i>${label[n.state]}</span></td>` +
+  const since = t => t ? new Date(t).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : '';
+  const peerTxt = n => n.peers == null ? '–' : fmt(n.peers) + (n.peersMore ? '+' : '');
+  const msTxt = n => n.ms == null || n.state === 'down' ? '–' : fmt(Math.round(n.ms)) + ' ms';
+  // uptime needs a few checks to mean anything: "new" for the first hour (6 checks)
+  const upTxt = n => n.probes < 6 ? 'new' : fmt(n.ok / n.probes * 100, 1) + '%';
+  // our node first, then by status; nodes not yet placed on the map go last in their group
+  const placed = n => n.lat == null ? 1 : 0;
+  $('n-rows').innerHTML = all.slice().sort((a, b) => b.home - a.home || order[a.state] - order[b.state] || placed(a) - placed(b) || a.country.localeCompare(b.country) || a.city.localeCompare(b.city)).map(n =>
+    `<tr><td>${esc(n.city)}, ${esc(n.country)}${n.home ? ' <small class="tag">Kadena Nexus node</small>' : ''}<span class="addr">${esc(n.name)}</span></td><td>${esc(n.host)}</td><td><span class="st"><i class="sw" style="background:${color[n.state]}"></i>${label[n.state]}</span></td>` +
     `<td class="r">${n.state === 'down' ? '–' : n.lag <= 5 ? 'at tip' : '≈ ' + compact(n.lag) + ' blocks'}</td>` +
-    `<td class="r">${n.probes < 50 ? 'new' : fmt(n.ok / n.probes * 100, 1) + '%'}</td></tr>`).join('');
+    `<td>${n.ver ? esc('v' + n.ver) : '–'}</td><td class="r">${peerTxt(n)}</td><td class="r">${msTxt(n)}</td>` +
+    `<td class="r" title="${n.since ? 'Tracked since ' + since(n.since) : ''}">${upTxt(n)}</td></tr>`).join('');
 
   initMap(); if (!map) return;
   layer.clearLayers();
@@ -1068,9 +1089,10 @@ async function pullNodes() {
     const icon = L.divIcon({className: '', html: `<div class="pin ${cls}" style="width:${size}px;height:${size}px">${list.length}</div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2]});
     const parts = [ok && `${ok} in sync`, bh && `${bh} behind`, dn && `${dn} unreachable`].filter(Boolean).join(' · ');
     const hosts = [...new Set(list.map(n => n.host))].join(', ');
+    const lines = list.length <= 5 ? list.map(n => `<span class="pop-n">${esc(n.name)}${n.home ? ' · Kadena Nexus node' : ''}<br>${[n.ver && 'v' + n.ver, n.peers != null && peerTxt(n) + ' peers', n.state !== 'down' && msTxt(n), upTxt(n) !== 'new' && upTxt(n) + ' uptime'].filter(Boolean).map(esc).join(' · ')}</span>`).join('') : '';
     pts.push([list[0].lat, list[0].lng]);
     L.marker([list[0].lat, list[0].lng], {icon, keyboard: true, title: `${list[0].city}: ${list.length} nodes`})
-      .bindPopup(`<b>${esc(list[0].city)}, ${esc(list[0].country)}</b><br>${parts}<br><span style="color:#4F6B76">${esc(hosts)}</span>`).addTo(layer);
+      .bindPopup(`<b>${esc(list[0].city)}, ${esc(list[0].country)}</b><br>${parts}<br><span style="color:#4F6B76">${esc(hosts)}</span>${lines}`).addTo(layer);
   }
   map.invalidateSize(); // the lists beside the map may have changed its height
   if (pts.length && !map._fitted) { fitWorld(); map.fitBounds(pts, {padding: [30, 30], maxZoom: 3}); map._fitted = true; }
