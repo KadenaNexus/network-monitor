@@ -99,3 +99,22 @@ sudo rm -rf /home/zero/monitor/dist/assets
 ```
 
 Keep `favicon.png`, `opengraph.jpg` and `data/`. Keep the backup for at least two weeks after this.
+
+## robots.txt and sitemap.xml (one-time, Mustafa)
+
+`client/robots.txt` and `client/sitemap.xml` tell search engines what to crawl. They change rarely, and the GitHub deploy for this site only copies `index.html` (the shared workflow allows only that file when deploying to a single file), so place them by hand once. nginx already serves real files in the web root before falling back, so no nginx change is needed.
+
+```bash
+# laptop, from the repo root
+scp client/robots.txt client/sitemap.xml mustafa@89.167.14.58:nodes-explorer/
+
+# server
+sudo install -o zero -g zero -m 644 ~/nodes-explorer/robots.txt  /home/zero/monitor/dist/robots.txt
+sudo install -o zero -g zero -m 644 ~/nodes-explorer/sitemap.xml /home/zero/monitor/dist/sitemap.xml
+
+# check from anywhere: both must print 200
+curl -s -o /dev/null -w '%{http_code}\n' https://nodes.kadena.ws/robots.txt
+curl -s -o /dev/null -w '%{http_code}\n' https://nodes.kadena.ws/sitemap.xml
+```
+
+This only adds two files next to `index.html`; it does not touch `dist/data`.
