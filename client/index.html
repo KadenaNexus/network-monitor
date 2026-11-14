@@ -934,6 +934,11 @@ async function pullNetwork() {
 }
 
 /* ---------- transaction mix ---------- */
+// Known senders shown by name instead of by contract function. The Kadena Nexus stress test (kadena.ws/tps)
+// sends coin.transfer-create from its own test account A; labelled so a run is easy to recognize here.
+const SENDER_LABELS = {
+  'k:536459361fa14e35ea2516e34473a73a30b6e1635f15d40273ed643506d40a4f': 'Kadena Nexus TPS stress test',
+};
 let MIXC = ['#1C637B', '#E2710A', '#5B9BB0', '#F2A65E', '#123A48'];
 let lastMix = null;
 async function pullMix() {
@@ -944,6 +949,7 @@ async function pullMix() {
     if (!t.pageInfo.hasNextPage) break;
   }
   const fnOf = n => {
+    const lbl = SENDER_LABELS[n.cmd.meta.sender]; if (lbl) return lbl;
     const p = n.cmd.payload; if (!p || p.__typename !== 'ExecutionPayload') return 'cross-chain continuation';
     let c = p.code || ''; try { if (c.startsWith('"')) c = JSON.parse(c); } catch (_) {}
     const m = /\(\s*([\w.\-]+)/.exec(c); return m ? m[1] : 'other code';
