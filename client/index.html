@@ -320,7 +320,7 @@ footer a:hover{color:var(--sand)}
      "name": "How many transactions per second does Kadena handle?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them."
+      "text": "The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them. For capacity: in the Kadena Nexus mainnet stress test (kadena.ws/tps) Kadena took 1,000 transactions per second for three minutes and processed 408 TPS at its busiest height, with all 20 chains full at once."
      }
     },
     {
@@ -378,7 +378,7 @@ footer a:hover{color:var(--sand)}
       </div>
 
       <div class="stats">
-        <div class="stat"><div class="k">Throughput</div><div class="v" id="s-tps">&ndash;<small>TPS</small></div><div class="s" id="s-tps-s">last 3 minutes</div></div>
+        <div class="stat"><div class="k">Throughput</div><div class="v" id="s-tps">&ndash;<small>TPS</small></div><div class="s" id="s-tps-s">last 3 minutes</div><a class="s" href="https://kadena.ws/tps/" style="display:block;margin-top:.2rem">Stress-test peak: 408 TPS →</a></div>
         <div class="stat"><div class="k">Block time</div><div class="v" id="s-bt">&ndash;</div><div class="s">network average</div></div>
         <div class="stat"><div class="k">First confirmation (TTFC)</div><div class="v" id="s-ttfc">&ndash;</div><div class="s" id="s-ttfc-s">median</div></div>
         <div class="stat"><div class="k">Active chains</div><div class="v" id="s-ac">&ndash;</div><div class="pips" id="s-pips" aria-hidden="true"></div></div>
@@ -503,7 +503,7 @@ footer a:hover{color:var(--sand)}
         <div><h3>How many chains does Kadena have?</h3><p>Kadena mainnet runs 20 chains in parallel. Each chain is braided to three others, so every block also references the latest blocks on its neighbors. The Chains section above shows all 20 live.</p></div>
         <div><h3>What is Kadena's block time?</h3><p>Each chain targets one block every 30 seconds. With 20 chains, the network as a whole produces around 40 blocks a minute. The Block time figure at the top shows the live network average.</p></div>
         <div><h3>How fast is a Kadena transaction confirmed?</h3><p>The First confirmation (TTFC) figure at the top shows the live median time from submitting a transaction until it is first included in a block. How many further blocks you wait for after that is up to the app or exchange.</p></div>
-        <div><h3>How many transactions per second does Kadena handle?</h3><p>The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them.</p></div>
+        <div><h3>How many transactions per second does Kadena handle?</h3><p>The Throughput figure shows the live rate, counted over the last 3 minutes. The transaction mix section shows which contract functions those transactions call and how many distinct senders are behind them. For capacity: in our <a href="https://kadena.ws/tps/">mainnet stress test</a> Kadena took 1,000 transactions per second for three minutes and processed 408 TPS at its busiest height, with all 20 chains full at once.</p></div>
         <div><h3>Where are Kadena nodes located?</h3><p>The node map shows public Chainweb nodes found by a network crawler, placed by IP location, with whether each is in sync. Kadena Nexus runs one of them in Jeddah, Saudi Arabia.</p></div>
         <div><h3>Is this a Kadena block explorer?</h3><p>No. It is a live view of how the Kadena network is doing as a whole. To look up a specific account or transaction, use a Kadena block explorer such as the <a href="https://explorer.chainweb-community.org/">community Chainweb explorer</a> or <a href="https://denascan.com/">Denascan</a>. The former explorer at explorer.kadena.io is no longer online. The monitor is free and needs no account or wallet.</p></div>
       </div>
@@ -522,6 +522,7 @@ footer a:hover{color:var(--sand)}
       <a href="https://earn.kadena.ws/">Earn</a>
       <a href="https://quantum.kadena.ws/">Quantum</a>
       <a href="https://kadena.ws/whales/">Whale Watch</a>
+      <a href="https://kadena.ws/tps/">TPS stress test</a>
       <a href="https://kadenadevs.kadena.ws/">Devs</a>
       <a href="https://kadena.ws/community-edition/">Kadena Community Edition</a>
       <a href="https://kadena.ws/privacy-policy">Privacy policy</a>
