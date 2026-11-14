@@ -850,13 +850,31 @@ async function shareImage() {
 }
 $('share').addEventListener('click', () => shareImage().catch(() => alert('Could not create the image.')));
 
+/* ---------- first confirmation over the last 60 s ---------- */
+// The headline TTFC comes from the explorer's backend over a longer window. This line shows the median for
+// transactions whose block landed in the last 60 s of block time: block time minus the creation time the sender's
+// wallet wrote. Wallets set that time themselves, so it is approximate. Needs at least 5 transactions.
+let ttfcSub = 'median', ttfc60 = null;
+function renderTtfcSub() {
+  $('s-ttfc-s').innerHTML = ttfcSub + (ttfc60 ? '<br>last 60 s: <b>' + fmt(ttfc60.m, 1) + '</b> s <span title="transactions counted">(' + fmt(ttfc60.n) + ' tx)</span>' : '');
+}
+async function pullTtfc60() {
+  const d = await gql('{ transactions(first: 200) { edges { node { cmd { meta { creationTime } } result { ... on TransactionResult { block { creationTime } } } } } } }');
+  const rows = d.transactions.edges.map(e => ({c: Date.parse(e.node.cmd.meta.creationTime), b: Date.parse(e.node.result?.block?.creationTime)})).filter(x => isFinite(x.c) && isFinite(x.b));
+  if (!rows.length) { ttfc60 = null; return renderTtfcSub(); }
+  const newest = Math.max(...rows.map(x => x.b));
+  const v = rows.filter(x => x.b > newest - 60000).map(x => (x.b - x.c) / 1000).filter(x => x >= 0 && x < 3600).sort((a, b) => a - b);
+  ttfc60 = v.length >= 5 ? {m: v.length % 2 ? v[v.length >> 1] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2, n: v.length} : null;
+  renderTtfcSub();
+}
+
 /* ---------- data files from this site ---------- */
 async function pullFiles() {
   const base = CFG.data;
   const [ttfc, active, tx24, bt] = await Promise.allSettled(['ttfc', 'activechains', 'tx24h', 'avgblocktime'].map(f => getText(base + f)));
   if (ttfc.status === 'fulfilled') {
     const [m, p] = ttfc.value.trim().split(/\r?\n/).map(parseFloat);
-    if (!isNaN(m)) { $('s-ttfc').innerHTML = fmt(m / 1000, 1) + '<small>s</small>'; $('s-ttfc-s').textContent = isNaN(p) ? 'median' : 'median · p90 ' + fmt(p / 1000, 1) + ' s'; }
+    if (!isNaN(m)) { $('s-ttfc').innerHTML = fmt(m / 1000, 1) + '<small>s</small>'; ttfcSub = isNaN(p) ? 'median' : 'median · p90 ' + fmt(p / 1000, 1) + ' s'; renderTtfcSub(); }
   }
   if (bt.status === 'fulfilled') { const v = parseFloat(bt.value); if (!isNaN(v)) $('s-bt').innerHTML = fmt(v, 1) + '<small>s</small>'; }
   if (tx24.status === 'fulfilled') {
@@ -1149,6 +1167,7 @@ pullBlocks(200).catch(() => {}).finally(() => {
   every(pullMix, 60000, () => { $('mix-list').innerHTML = '<li class="err">Recent transactions are unavailable right now.</li>'; });
 });
 every(pullFiles, 30000);
+every(pullTtfc60, 15000, () => { ttfc60 = null; renderTtfcSub(); });
 every(pullNode, 10000, () => setStatus());
 every(pullNetwork, 120000, () => { hrIndexer = null; renderHashrate(); });
 every(pullNodes, 300000, () => {
