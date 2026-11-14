@@ -578,7 +578,7 @@ const blocks = new Map();          // "chain:height" -> {c,h,t,tx}
 const lastByChain = Array(N).fill(null);   // newest block the indexer has, per chain
 const nodeByChain = Array(N).fill(null);   // newest block the node has, per chain: {h, t}
 let nodeOk = 0;
-let clockSkew = 0, lastOk = 0, maxHeight = 0, tps = null, chainTx = null, avgTx = 0;
+let clockSkew = 0, lastOk = 0, maxHeight = 0, tps = null, tps60 = null, chainTx = null, avgTx = 0;
 // Server time minus device time, from this site's own Date header, so block ages and the
 // Live/Delayed status stay right on devices whose clock is off. Until it is known, the page
 // keeps the original relative behaviour.
@@ -625,6 +625,11 @@ async function pullBlocks(first) {
   const from = newest - CFG.tpsWindowS * 1000; let sum = 0;
   for (const b of blocks.values()) if (b.t > from && b.t <= newest) sum += b.tx;
   tps = sum / CFG.tpsWindowS;
+  // and over the last 60 s, so a one-minute burst (kadena.ws/tps) shows at its real rate. Each chain makes a
+  // block about every 30 s, so this figure is noisier than the 3-minute one.
+  let sum60 = 0; const from60 = newest - 60000;
+  for (const b of blocks.values()) if (b.t > from60 && b.t <= newest) sum60 += b.tx;
+  tps60 = sum60 / 60;
   $('s-tps').innerHTML = fmt(tps, 2) + '<small>TPS</small>';
   renderHeads();
 }
@@ -645,7 +650,7 @@ function renderHeads() {
   $('s-ac').innerHTML = act.filter(Boolean).length + '<small>/ 20</small>';
   $('s-pips').innerHTML = act.map(a => `<span class="${a ? 'on' : ''}"></span>`).join('');
   const lag = indexerLag();
-  $('s-tps-s').textContent = lag > LAG_OK ? 'indexer ' + ago(lag) + ' behind' : 'last 3 minutes';
+  $('s-tps-s').innerHTML = lag > LAG_OK ? 'indexer ' + ago(lag) + ' behind' : 'last 3 minutes' + (tps60 == null ? '' : '<br>last 60 s: <b>' + fmt(tps60, 2) + '</b> TPS');
   renderHashrate();
   renderChainAges();
   setStatus();
